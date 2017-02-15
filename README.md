@@ -2,7 +2,7 @@
 
 A .NET implementation of the 
 [Bayeux client protocol](https://docs.cometd.org/current/reference/#_bayeux) 
-targeting `netstandard1.4`.
+targeting `netstandard1.1`.
 
 ## Example
 
