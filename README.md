@@ -8,6 +8,7 @@ targeting `netstandard1.1`.
 
 ```csharp
 using Bayeux;
+using Bayeux.Diagnostics;
 
 namespace Example
 {

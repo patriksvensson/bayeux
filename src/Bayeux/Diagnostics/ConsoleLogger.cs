@@ -1,7 +1,6 @@
 ﻿using System;
-using Bayeux.Diagnostics;
 
-namespace Bayeux.Sandbox
+namespace Bayeux.Diagnostics
 {
     public sealed class ConsoleLogger : IBayeuxLogger
     {

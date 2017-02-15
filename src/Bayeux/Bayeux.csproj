@@ -10,8 +10,14 @@
     <RepositoryUrl>https://github.com/patriksvensson/bayeux</RepositoryUrl>
     <PackageTags>Bayeux</PackageTags>
     <PackageProjectUrl>https://github.com/patriksvensson/bayeux</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/patriksvensson/bayeux/blob/develop/LICENSE</PackageLicenseUrl>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Console">
+      <HintPath>..\..\..\..\..\..\Users\psn\.nuget\packages\system.console\4.3.0\ref\netstandard1.3\System.Console.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>

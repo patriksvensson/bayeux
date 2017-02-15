@@ -1,4 +1,5 @@
 ﻿using System;
+using Bayeux.Diagnostics;
 
 namespace Bayeux.Sandbox
 {
