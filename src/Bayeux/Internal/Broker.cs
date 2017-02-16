@@ -9,29 +9,49 @@ namespace Bayeux.Internal
     {
         private readonly Transport _transport;
         private readonly List<BayeuxProtocolExtension> _extensions;
+        private readonly SemaphoreSlim _semaphore;
+        private string _clientId;
 
         public Broker(Transport transport, IEnumerable<BayeuxProtocolExtension> extensions)
         {
             _transport = transport;
             _extensions = new List<BayeuxProtocolExtension>(extensions ?? Enumerable.Empty<BayeuxProtocolExtension>());
+            _semaphore = new SemaphoreSlim(1, 1);
+            _clientId = null;
+        }
+
+        public void SetClientId(string clientId)
+        {
+            using (new SemaphoreScope(_semaphore))
+            {
+                _clientId = clientId;
+            }
         }
 
         public async Task<TransportResponse> Send(Message message, CancellationToken token)
         {
-            if (_extensions.Count > 0)
+            using (new SemaphoreScope(_semaphore))
             {
-                foreach (var extension in _extensions)
+                // Set the message client ID.
+                message.ClientId = _clientId;
+
+                // Add extensions to message.
+                if (_extensions.Count > 0)
                 {
-                    if (extension.TryExtendOutgoing(message, out object obj))
+                    foreach (var extension in _extensions)
                     {
-                        if (message.Extension == null)
+                        if (extension.TryExtendOutgoing(message, out object obj))
                         {
-                            message.Extension = new Dictionary<string, object>();
+                            if (message.Extension == null)
+                            {
+                                message.Extension = new Dictionary<string, object>();
+                            }
+                            message.Extension[extension.Name] = obj;
                         }
-                        message.Extension[extension.Name] = obj;
                     }
                 }
             }
+
             return await _transport.Send(message, token);
         }
     }

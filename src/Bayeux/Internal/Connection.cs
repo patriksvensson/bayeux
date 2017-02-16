@@ -27,6 +27,9 @@ namespace Bayeux.Internal
                     throw new InvalidOperationException(message);
                 }
 
+                // Update the client ID.
+                _broker.SetClientId(handshake.Response.ClientId);
+
                 // Create a new cancellation token source.
                 var context = new ConnectionHeartbeatContext(handshake.Response.ClientId);
                 _heartbeat.Start(context);
@@ -38,6 +41,7 @@ namespace Bayeux.Internal
             if (_heartbeat.IsRunning)
             {
                 _heartbeat.Stop();
+                _broker.SetClientId(null);
             }
         }
 
@@ -47,7 +51,7 @@ namespace Bayeux.Internal
             {
                 throw new InvalidOperationException("Not connected to server.");
             }
-            _broker.SendSubscribe(_heartbeat.ClientId, channel).Wait();
+            _broker.SendSubscribe(channel).Wait();
         }
     }
 }

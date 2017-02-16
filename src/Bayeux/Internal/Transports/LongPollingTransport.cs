@@ -17,62 +17,70 @@ namespace Bayeux.Internal
         private readonly Uri _endpoint;
         private readonly IBayeuxLogger _logger;
         private readonly HttpClient _client;
+        private readonly SemaphoreSlim _semaphore;
 
         public LongPollingTransport(Uri endpoint, IBayeuxLogger logger)
         {
             _endpoint = endpoint;
             _logger = logger ?? new DefaultLogger();
             _client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(Timeout.Infinite) };
+            _semaphore = new SemaphoreSlim(2, 2); // Allow two simultaneous calls.
         }
 
         public override async Task<TransportResponse> Send(Message message, CancellationToken token)
         {
-            // Create the request.
-            _logger.Write(BayeuxLogLevel.Debug, "[REQUEST] Channel = {0}", message.Channel);
-            var request = CreateRequest(message);
-
-            // Get the response.
-            var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
-            if (response.StatusCode != HttpStatusCode.OK)
+            using (new SemaphoreScope(_semaphore))
             {
-                _logger.Write(BayeuxLogLevel.Warning, "[REQUEST] Received HTTP Status Code {0} for channel {1}.", response.StatusCode, message.Channel);
-                return null;
-            }
+                // Create the request.
+                _logger.Write(BayeuxLogLevel.Debug, "[REQUEST] Channel = {0}", message.Channel);
+                var request = CreateRequest(message);
 
-            var stream = await response.Content.ReadAsStreamAsync();
-
-            var result = new TransportResponse();
-            using (var reader = new StreamReader(stream))
-            {
-                while (true)
+                // Get the response.
+                var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
+                if (response.StatusCode != HttpStatusCode.OK)
                 {
-                    var json = await reader.ReadLineAsync().WithCancellation(token);
-                    if (json == null)
-                    {
-                        break;
-                    }
+                    _logger.Write(BayeuxLogLevel.Warning, "[REQUEST] Received HTTP Status Code {0} for channel {1}.",
+                        response.StatusCode, message.Channel);
+                    return null;
+                }
 
-                    var replies = JsonConvert.DeserializeObject<Envelope>(json);
-                    foreach (var reply in replies)
+                var stream = await response.Content.ReadAsStreamAsync();
+
+                var result = new TransportResponse();
+                using (var reader = new StreamReader(stream))
+                {
+                    while (true)
                     {
-                        if (reply.Channel == message.Channel)
+                        var json = await reader.ReadLineAsync().WithCancellation(token);
+                        if (json == null)
                         {
-                            _logger.Write(BayeuxLogLevel.Debug, "[RESPONSE] Channel = {0}, ClientId = {1}, Error = {2}", reply.Channel, reply.ClientId, reply.Error ?? "No error");
-                            result.Response = reply;
+                            break;
                         }
-                        else
+
+                        var replies = JsonConvert.DeserializeObject<Envelope>(json);
+                        foreach (var reply in replies)
                         {
-                            if (result.Messages == null)
+                            if (reply.Channel == message.Channel)
                             {
-                                result.Messages = new List<Message>();
+                                _logger.Write(BayeuxLogLevel.Debug,
+                                    "[RESPONSE] Channel = {0}, ClientId = {1}, Error = {2}", reply.Channel,
+                                    reply.ClientId, reply.Error ?? "No error");
+                                result.Response = reply;
                             }
-                            _logger.Write(BayeuxLogLevel.Debug, "[MESSAGE] Channel = {0}", reply.Channel);
-                            result.Messages.Add(reply);
+                            else
+                            {
+                                if (result.Messages == null)
+                                {
+                                    result.Messages = new List<Message>();
+                                }
+                                _logger.Write(BayeuxLogLevel.Debug, "[MESSAGE] Channel = {0}", reply.Channel);
+                                result.Messages.Add(reply);
+                            }
                         }
                     }
                 }
+                return result;
             }
-            return result;
         }
 
         private HttpRequestMessage CreateRequest(Message message)
