@@ -5,13 +5,15 @@ using System.Threading.Tasks;
 
 namespace Bayeux.Internal
 {
-    internal sealed class MessageRouter : TaskWrapper<MessageQueue>
+    internal sealed class MessageRouter : TaskWrapper
     {
+        private readonly MessageQueue _queue;
         private readonly SemaphoreSlim _semaphore;
         private readonly Dictionary<string, List<Action<IBayeuxMessage>>> _callbacks;
 
-        public MessageRouter()
+        public MessageRouter(MessageQueue queue)
         {
+            _queue = queue;
             _semaphore = new SemaphoreSlim(1, 1);
             _callbacks = new Dictionary<string, List<Action<IBayeuxMessage>>>(StringComparer.OrdinalIgnoreCase);
         }
@@ -29,11 +31,11 @@ namespace Bayeux.Internal
         }
 
         // ReSharper disable once FunctionNeverReturns
-        protected override Task Run(MessageQueue queue, CancellationToken token)
+        protected override Task Run(CancellationToken token)
         {
             while (true)
             {
-                var message = queue.Dequeue(token);
+                var message = _queue.Dequeue(token);
                 if (message != null)
                 {
                     using (new SemaphoreScope(_semaphore))

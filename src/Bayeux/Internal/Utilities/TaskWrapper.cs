@@ -5,6 +5,21 @@ using System.Threading.Tasks;
 // ReSharper disable once CheckNamespace
 namespace Bayeux.Internal
 {
+    internal abstract class TaskWrapper : TaskWrapper<object>
+    {
+        protected abstract Task Run(CancellationToken token);
+
+        public void Start()
+        {
+            Start(null);
+        }
+
+        protected sealed override Task Run(object context, CancellationToken token)
+        {
+            return Run(token);
+        }
+    }
+
     internal abstract class TaskWrapper<T>
         where T : class
     {
@@ -39,15 +54,7 @@ namespace Bayeux.Internal
             }
         }
 
-        protected virtual void Setup(T context)
-        {
-        }
-
         protected abstract Task Run(T context, CancellationToken token);
-
-        protected virtual void Teardown(T context)
-        {
-        }
 
         private async Task Execute(object state)
         {
@@ -55,8 +62,6 @@ namespace Bayeux.Internal
 
             try
             {
-                Setup(context);
-
                 _stopped.Reset();
                 _started.Set();
 
@@ -67,8 +72,6 @@ namespace Bayeux.Internal
             }
             finally
             {
-                Teardown(context);
-
                 _stopped.Set();
                 _started.Reset();
             }
