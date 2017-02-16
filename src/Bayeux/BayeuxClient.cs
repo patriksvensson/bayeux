@@ -5,7 +5,6 @@ namespace Bayeux
 {
     public sealed class BayeuxClient : IDisposable
     {
-        private readonly MessageQueue _queue;
         private readonly Connection _connection;
         private readonly MessageRouter _router;
 
@@ -16,9 +15,10 @@ namespace Bayeux
 
         public BayeuxClient(BayeuxClientSettings settings)
         {
-            _queue = new MessageQueue();
-            _connection = new Connection(settings.Endpoint, _queue, settings.Extensions, settings.Logger);
-            _router = new MessageRouter();
+            var queue = new MessageQueue();
+
+            _connection = new Connection(settings.Endpoint, queue, settings.Extensions, settings.Logger);
+            _router = new MessageRouter(queue);
         }
 
         void IDisposable.Dispose()
@@ -29,7 +29,7 @@ namespace Bayeux
         public void Connect()
         {
             _connection.Connect();
-            _router.Start(_queue);
+            _router.Start();
         }
 
         public void Disconnect()
