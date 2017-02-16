@@ -8,17 +8,10 @@ namespace Bayeux.Internal
         private readonly Broker _broker;
         private readonly MessageQueue _queue;
 
-        public string ClientId { get; set; }
-
         public ConnectionHeartbeat(Broker broker, MessageQueue queue)
         {
             _broker = broker;
             _queue = queue;
-        }
-
-        protected override void Setup(ConnectionHeartbeatContext context)
-        {
-            ClientId = context.ClientId;
         }
 
         protected override async Task Run(ConnectionHeartbeatContext context, CancellationToken token)
@@ -28,7 +21,7 @@ namespace Bayeux.Internal
                 while (true)
                 {
                     // Connect and do long polling.
-                    var result = await _broker.SendConnect(context.ClientId, token);
+                    var result = await _broker.SendConnect(token);
                     FlushMessages(result, token);
 
                     // TODO: Respect advice from server.
@@ -38,15 +31,9 @@ namespace Bayeux.Internal
             finally
             {
                 // Send disconnect and flush messages.
-                var result = await _broker.SendDisconnect(ClientId);
+                var result = await _broker.SendDisconnect();
                 FlushMessages(result, CancellationToken.None);
             }
-        }
-
-        protected override void Teardown(ConnectionHeartbeatContext context)
-        {
-            // Reset client ID.
-            ClientId = null;
         }
 
         private void FlushMessages(TransportResponse result, CancellationToken token)
